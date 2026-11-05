@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <title>Gang Beasts</title>
+
+  <link rel="shortcut icon" href="https://cdn.jsdelivr.net/gh/jmhq20120212-cmd/GangBeast-WebPort@main/TemplateData/favicon.ico">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jmhq20120212-cmd/GangBeast-WebPort@main/TemplateData/style.css">
+
+  <style>
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden !important;
+      background: #000 !important;
+    }
+
+    #unity-container {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+    }
+
+    #unity-canvas {
+      display: block !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      outline: none !important;
+      background: #000 !important;
+    }
+
+    #unity-footer,
+    #unity-webgl-logo,
+    #unity-fullscreen-button,
+    #unity-build-title {
+      display: none !important;
+    }
+
+    #unity-loading-bar {
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      z-index: 10 !important;
+    }
+
+    #unity-mobile-warning {
+      display: none !important;
+    }
+  </style>
+
+  <script>
+    // Route Unity file requests to the correct GitHub sources.
+    const originalFetch = window.fetch;
+
+    window.fetch = async function(resource, init) {
+      let url = typeof resource === "string"
+        ? resource
+        : (resource instanceof Request ? resource.url : "");
+
+      if (
+        !url.startsWith("http") &&
+        !url.startsWith("blob:") &&
+        !url.startsWith("data:")
+      ) {
+        url = url.replace(/^\/+/, "");
+
+        if (
+          url.endsWith(".json") ||
+          url.endsWith(".js") ||
+          url.endsWith(".css") ||
+          url.endsWith(".ico")
+        ) {
+          url = "https://cdn.jsdelivr.net/gh/jmhq20120212-cmd/GangBeast-WebPort@main/" + url;
+        } else {
+          url = "https://raw.githubusercontent.com/jmhq20120212-cmd/GangBeast-WebPort/main/" + url;
+        }
+      }
+
+      const request = resource instanceof Request
+        ? new Request(url, resource)
+        : url;
+
+      return originalFetch(request, init);
+    };
+  </script>
+</head>
+
+<body>
+
+  <div id="unity-container">
+    <canvas id="unity-canvas" width="1280" height="720"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+    </div>
+
+    <div id="unity-mobile-warning">
+      WebGL builds are not supported on mobile devices.
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/jmhq20120212-cmd/GangBeast-WebPort@main/game-data.js"></script>
+
+  <script>
+    var buildUrl = "Build";
+
+    var loaderUrl =
+      "https://cdn.jsdelivr.net/gh/jmhq20120212-cmd/GangBeast-WebPort@main/Build/WebGLValidation.loader.js";
+
+    var config = {
+      dataUrl: "Build/WebGLValidation.data",
+
+      frameworkUrl:
+        "https://cdn.jsdelivr.net/gh/jmhq20120212-cmd/GangBeast-WebPort@main/Build/WebGLValidation.framework.js",
+
+      codeUrl:
+        "https://raw.githubusercontent.com/jmhq20120212-cmd/GangBeast-WebPort/main/Build/WebGLValidation.wasm",
+
+      streamingAssetsUrl:
+        "https://raw.githubusercontent.com/jmhq20120212-cmd/GangBeast-WebPort/main/StreamingAssets",
+
+      companyName: "Boneloaf",
+      productName: "Gang Beasts",
+      productVersion: "1.0",
+
+      matchWebGLToCanvasSize: true
+    };
+
+    var container = document.querySelector("#unity-container");
+    var canvas = document.querySelector("#unity-canvas");
+    var loadingBar = document.querySelector("#unity-loading-bar");
+    var progressBarFull = document.querySelector("#unity-progress-bar-full");
+
+    function resizeGame() {
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+    }
+
+    window.addEventListener("resize", resizeGame);
+    resizeGame();
+
+    loadingBar.style.display = "block";
+
+    var script = document.createElement("script");
+    script.src = loaderUrl;
+
+    script.onload = async () => {
+      var dataBlobUrl;
+
+      try {
+        dataBlobUrl = await loadGameData(
+          "Build/data-manifest.json",
+          (progress) => {
+            progressBarFull.style.width = (80 * progress) + "%";
+          }
+        );
+
+        config.dataUrl = dataBlobUrl;
+
+        await createUnityInstance(
+          canvas,
+          config,
+          (progress) => {
+            progressBarFull.style.width =
+              (80 + 20 * progress) + "%";
+          }
+        ).then((unityInstance) => {
+          loadingBar.style.display = "none";
+
+          // Keep the game running without Unity's footer controls.
+          resizeGame();
+        });
+
+      } catch (error) {
+        console.error(error);
+
+        alert(
+          "Could not load Gang Beasts. Refresh to try again. " +
+          error.message
+        );
+
+      } finally {
+        if (dataBlobUrl) {
+          URL.revokeObjectURL(dataBlobUrl);
+        }
+      }
+    };
+
+    script.onerror = () => {
+      alert("Failed to load the Unity game loader.");
+    };
+
+    document.body.appendChild(script);
+  </script>
+
+</body>
+</html>
